@@ -1,8 +1,7 @@
-require("dotenv").config();
-
-const express = require("express");
-const cors = require("cors");
-const { PayOS } = require("@payos/node");
+import "dotenv/config";
+import express from "express";
+import cors from "cors";
+import { PayOS } from "@payos/node";
 
 const app = express();
 
@@ -15,7 +14,7 @@ const payOS = new PayOS({
   checksumKey: process.env.PAYOS_CHECKSUM_KEY,
 });
 
-let orders = {};
+const orders = {};
 
 app.get("/", (req, res) => {
   res.send("PayOS backend running OK");
@@ -35,9 +34,9 @@ app.post("/create-payment", async (req, res) => {
         {
           name: "Tai nghe Bluetooth MusicBox Pro",
           quantity: 1,
-          price: 150000,
-        },
-      ],
+          price: 150000
+        }
+      ]
     });
 
     orders[orderCode] = "PENDING";
@@ -46,36 +45,35 @@ app.post("/create-payment", async (req, res) => {
       orderCode,
       description: "DH" + orderCode,
       checkoutUrl: paymentLink.checkoutUrl,
-      qrCode: paymentLink.qrCode,
+      qrCode: paymentLink.qrCode
     });
   } catch (error) {
-    console.log("Create payment error:", error);
-    res.status(500).json({
-      message: error.message,
-    });
+    console.error("Create payment error:", error);
+    res.status(500).json({ message: error.message });
   }
 });
 
 app.post("/webhook", (req, res) => {
   try {
-    const webhookData = payOS.webhooks.verify(req.body);
+    const data = payOS.webhooks.verify(req.body);
 
-    console.log("Webhook PayOS:", webhookData);
+    console.log("Webhook PayOS:", data);
 
-    if (webhookData.orderCode) {
-      orders[webhookData.orderCode] = "PAID";
+    if (data.orderCode) {
+      orders[data.orderCode] = "PAID";
     }
 
     res.status(200).send("OK");
   } catch (error) {
-    console.log("Webhook error:", error);
+    console.error("Webhook error:", error);
     res.status(400).send("Invalid webhook");
   }
 });
 
 app.get("/payment-status/:orderCode", (req, res) => {
-  const status = orders[req.params.orderCode] || "PENDING";
-  res.json({ status });
+  res.json({
+    status: orders[req.params.orderCode] || "PENDING"
+  });
 });
 
 app.listen(process.env.PORT || 3000, () => {
