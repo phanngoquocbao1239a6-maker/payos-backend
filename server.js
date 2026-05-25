@@ -2,14 +2,14 @@ require("dotenv").config();
 
 const express = require("express");
 const cors = require("cors");
-const PayOS = require("@payos/node");
+const { PayOS } = require("@payos/node");
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-const payOS = new PayOS.default(
+const payOS = new PayOS(
   process.env.PAYOS_CLIENT_ID,
   process.env.PAYOS_API_KEY,
   process.env.PAYOS_CHECKSUM_KEY
@@ -22,18 +22,19 @@ app.get("/", (req, res) => {
 });
 
 app.post("/create-payment", async (req, res) => {
-
   try {
 
     const orderCode =
       Number(Date.now().toString().slice(-6));
+
+    const amount = 150000;
 
     const paymentLink =
       await payOS.createPaymentLink({
 
         orderCode,
 
-        amount: 150000,
+        amount,
 
         description:
           "DH" + orderCode,
@@ -47,11 +48,11 @@ app.post("/create-payment", async (req, res) => {
         items: [
           {
             name:
-              "Tai nghe Bluetooth",
+              "Tai nghe Bluetooth MusicBox Pro",
 
             quantity: 1,
 
-            price: 150000
+            price: amount
           }
         ]
       });
@@ -60,8 +61,15 @@ app.post("/create-payment", async (req, res) => {
 
     res.json({
       orderCode,
+
+      description:
+        "DH" + orderCode,
+
       checkoutUrl:
-        paymentLink.checkoutUrl
+        paymentLink.checkoutUrl,
+
+      qrCode:
+        paymentLink.qrCode
     });
 
   } catch (error) {
@@ -73,14 +81,40 @@ app.post("/create-payment", async (req, res) => {
     });
 
   }
-
 });
 
 app.post("/webhook", (req, res) => {
 
-  console.log(req.body);
+  try {
 
-  res.sendStatus(200);
+    console.log(
+      "Webhook:",
+      req.body
+    );
+
+    const data = req.body;
+
+    if (data.data?.orderCode) {
+
+      orders[
+        data.data.orderCode
+      ] = "PAID";
+
+      console.log(
+        "Đã thanh toán:",
+        data.data.orderCode
+      );
+    }
+
+    res.sendStatus(200);
+
+  } catch (error) {
+
+    console.log(error);
+
+    res.sendStatus(400);
+
+  }
 
 });
 
@@ -89,10 +123,13 @@ app.get(
   (req, res) => {
 
     const status =
-      orders[req.params.orderCode]
-      || "PENDING";
+      orders[
+        req.params.orderCode
+      ] || "PENDING";
 
-    res.json({ status });
+    res.json({
+      status
+    });
 
 });
 
