@@ -14,105 +14,182 @@ const payOS = new PayOS({
   checksumKey: process.env.PAYOS_CHECKSUM_KEY,
 });
 
+const orders = {};
+
 app.get("/", (req, res) => {
   res.send("PayOS backend running OK");
 });
 
 app.post("/create-payment", async (req, res) => {
   try {
+
     const {
-      productName = "Sản phẩm",
-      quantity = 1,
-      amount = 1000
+      productName,
+      productCode,
+      quantity,
+      amount
     } = req.body;
 
-    const orderCode = Number(Date.now().toString().slice(-6));
+    const orderCode =
+      Number(Date.now().toString().slice(-6));
 
-    const paymentLink = await payOS.paymentRequests.create({
-      orderCode,
-      amount: Number(amount),
-      description: "DH" + orderCode,
-      returnUrl: `https://phanngoquocbao1239a6.github.io?orderCode=${orderCode}`,
-      cancelUrl: `https://phanngoquocbao1239a6.github.io?cancel=true`,
-      items: [
-        {
-          name: productName,
-          quantity: Number(quantity),
-          price: Number(amount)
-        }
-      ]
-    });
+    const paymentLink =
+      await payOS.paymentRequests.create({
+
+        orderCode,
+
+        amount: Number(amount),
+
+        description:
+          "DH" + orderCode,
+
+        returnUrl:
+          "https://phanngoquocbao1239a6.github.io",
+
+        cancelUrl:
+          "https://phanngoquocbao1239a6.github.io",
+
+        items: [
+          {
+            name:
+              productName,
+
+            quantity:
+              Number(quantity),
+
+            price:
+              Number(amount)
+          }
+        ]
+      });
+
+    orders[orderCode] = {
+      status: "PENDING",
+      productName,
+      productCode,
+      quantity,
+      amount
+    };
 
     res.json({
       success: true,
+
       orderCode,
-      description: "DH" + orderCode,
-      amount: Number(amount),
+
+      description:
+        "DH" + orderCode,
+
+      amount,
+
       productName,
-      checkoutUrl: paymentLink.checkoutUrl,
-      qrCode: paymentLink.qrCode
+
+      checkoutUrl:
+        paymentLink.checkoutUrl,
+
+      qrCode:
+        paymentLink.qrCode
     });
 
   } catch (error) {
-    console.error("CREATE PAYMENT ERROR:", error);
+
+    console.error(
+      "Create payment error:",
+      error
+    );
 
     res.status(500).json({
       success: false,
       message: error.message
     });
+
   }
 });
 
 app.post("/webhook", (req, res) => {
-  try {
-    const data = payOS.webhooks.verify(req.body);
 
-    console.log("WEBHOOK PAYOS:", data);
+  try {
+
+    const data =
+      payOS.webhooks.verify(req.body);
+
+    console.log(
+      "Webhook PayOS:",
+      data
+    );
+
+    if (data.orderCode) {
+
+      if (
+        orders[data.orderCode]
+      ) {
+
+        orders[data.orderCode]
+          .status = "PAID";
+
+      } else {
+
+        orders[data.orderCode] = {
+          status: "PAID"
+        };
+
+      }
+
+      console.log(
+        "Đã thanh toán:",
+        data.orderCode
+      );
+    }
 
     res.status(200).send("OK");
 
   } catch (error) {
-    console.error("WEBHOOK ERROR:", error);
 
-    res.status(400).send("Invalid webhook");
+    console.error(
+      "Webhook error:",
+      error
+    );
+
+    res
+      .status(400)
+      .send("Invalid webhook");
+
   }
+
 });
 
-app.get("/payment-status/:orderCode", async (req, res) => {
-  try {
-    const orderCode = Number(req.params.orderCode);
+app.get(
+  "/payment-status/:orderCode",
+  (req, res) => {
 
-    const paymentData = await payOS.paymentRequests.get(orderCode);
+    const order =
+      orders[
+        req.params.orderCode
+      ];
 
-    console.log("PAYMENT STATUS:", paymentData);
+    if (!order) {
 
-    if (
-      paymentData.status === "PAID" ||
-      paymentData.status === "paid"
-    ) {
       return res.json({
-        success: true,
-        status: "PAID",
-        orderCode
+        status: "PENDING"
       });
+
     }
 
-    return res.json({
-      success: true,
-      status: "PENDING",
-      orderCode
+    res.json({
+      status: order.status,
+      productName:
+        order.productName,
+      amount:
+        order.amount
     });
 
-  } catch (error) {
-    console.error("CHECK PAYMENT ERROR:", error);
-
-    return res.json({
-      success: false,
-      status: "PENDING"
-    });
-  }
 });
 
-app.listen(process.env.PORT || 3000, () => {
-  console.log("Server running");
+app.listen(
+  process.env.PORT || 3000,
+  () => {
+
+    console.log(
+      "Server running"
+    );
+
 });
