@@ -1,8 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import { PayOS } from "@payos/node";
-
+import PayOS from "@payos/node";
 const app = express();
 
 app.use(cors());
