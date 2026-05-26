@@ -43,11 +43,11 @@ app.post("/create-payment", async (req, res) => {
         description:
           "DH" + orderCode,
 
-        returnUrl:
-          "https://phanngoquocbao1239a6.github.io",
+       returnUrl:
+`https://phanngoquocbao.id.vn/?success=true&orderCode=${orderCode}`,
 
-        cancelUrl:
-          "https://phanngoquocbao1239a6.github.io",
+cancelUrl:
+`https://phanngoquocbao.id.vn/?cancel=true`,
 
         items: [
           {
