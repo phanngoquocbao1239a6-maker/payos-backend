@@ -7,9 +7,9 @@
     "start": "node server.js"
   },
   "dependencies": {
-    "@payos/node": "latest",
-    "cors": "latest",
-    "dotenv": "latest",
-    "express": "latest"
+    "@payos/node": "1.0.7",
+    "cors": "2.8.5",
+    "dotenv": "16.4.5",
+    "express": "4.19.2"
   }
 }
