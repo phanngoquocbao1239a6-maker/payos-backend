@@ -22,60 +22,174 @@ app.get("/", (req, res) => {
 
 app.post("/create-payment", async (req, res) => {
   try {
-    const orderCode = Number(Date.now().toString().slice(-6));
 
-    const paymentLink = await payOS.paymentRequests.create({
-      orderCode,
-      amount: 150000,
-      description: "DH" + orderCode,
-      returnUrl: "https://phanngoquocbao1239a6.github.io",
-      cancelUrl: "https://phanngoquocbao1239a6.github.io",
-      items: [
-        {
-          name: "Tai nghe Bluetooth MusicBox Pro",
-          quantity: 1,
-          price: 150000
-        }
-      ]
-    });
+    const {
+      productName,
+      productCode,
+      quantity,
+      amount
+    } = req.body;
 
-    orders[orderCode] = "PENDING";
+    const orderCode =
+      Number(Date.now().toString().slice(-6));
+
+    const paymentLink =
+      await payOS.paymentRequests.create({
+
+        orderCode,
+
+        amount: Number(amount),
+
+        description:
+          "DH" + orderCode,
+
+        returnUrl:
+          "https://phanngoquocbao1239a6.github.io",
+
+        cancelUrl:
+          "https://phanngoquocbao1239a6.github.io",
+
+        items: [
+          {
+            name:
+              productName,
+
+            quantity:
+              Number(quantity),
+
+            price:
+              Number(amount)
+          }
+        ]
+      });
+
+    orders[orderCode] = {
+      status: "PENDING",
+      productName,
+      productCode,
+      quantity,
+      amount
+    };
 
     res.json({
+      success: true,
+
       orderCode,
-      description: "DH" + orderCode,
-      checkoutUrl: paymentLink.checkoutUrl,
-      qrCode: paymentLink.qrCode
+
+      description:
+        "DH" + orderCode,
+
+      amount,
+
+      productName,
+
+      checkoutUrl:
+        paymentLink.checkoutUrl,
+
+      qrCode:
+        paymentLink.qrCode
     });
+
   } catch (error) {
-    console.error("Create payment error:", error);
-    res.status(500).json({ message: error.message });
+
+    console.error(
+      "Create payment error:",
+      error
+    );
+
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+
   }
 });
 
 app.post("/webhook", (req, res) => {
-  try {
-    const data = payOS.webhooks.verify(req.body);
 
-    console.log("Webhook PayOS:", data);
+  try {
+
+    const data =
+      payOS.webhooks.verify(req.body);
+
+    console.log(
+      "Webhook PayOS:",
+      data
+    );
 
     if (data.orderCode) {
-      orders[data.orderCode] = "PAID";
+
+      if (
+        orders[data.orderCode]
+      ) {
+
+        orders[data.orderCode]
+          .status = "PAID";
+
+      } else {
+
+        orders[data.orderCode] = {
+          status: "PAID"
+        };
+
+      }
+
+      console.log(
+        "Đã thanh toán:",
+        data.orderCode
+      );
     }
 
     res.status(200).send("OK");
+
   } catch (error) {
-    console.error("Webhook error:", error);
-    res.status(400).send("Invalid webhook");
+
+    console.error(
+      "Webhook error:",
+      error
+    );
+
+    res
+      .status(400)
+      .send("Invalid webhook");
+
   }
+
 });
 
-app.get("/payment-status/:orderCode", (req, res) => {
-  res.json({
-    status: orders[req.params.orderCode] || "PENDING"
-  });
+app.get(
+  "/payment-status/:orderCode",
+  (req, res) => {
+
+    const order =
+      orders[
+        req.params.orderCode
+      ];
+
+    if (!order) {
+
+      return res.json({
+        status: "PENDING"
+      });
+
+    }
+
+    res.json({
+      status: order.status,
+      productName:
+        order.productName,
+      amount:
+        order.amount
+    });
+
 });
 
-app.listen(process.env.PORT || 3000, () => {
-  console.log("Server running");
+app.listen(
+  process.env.PORT || 3000,
+  () => {
+
+    console.log(
+      "Server running"
+    );
+
 });
