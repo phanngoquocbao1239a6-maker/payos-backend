@@ -21,7 +21,6 @@ app.get("/", (req, res) => {
 
 app.post("/create-payment", async (req, res) => {
   try {
-
     const {
       productName,
       productCode,
@@ -29,38 +28,23 @@ app.post("/create-payment", async (req, res) => {
       amount
     } = req.body;
 
-    const orderCode =
-      Number(Date.now().toString().slice(-6));
+    const orderCode = Number(Date.now().toString().slice(-6));
 
-    const paymentLink =
-      await payOS.paymentRequests.create({
-
-        orderCode,
-
-        amount: Number(amount),
-
-        description:
-          "DH" + orderCode,
-
-       returnUrl:
-`https://phanngoquocbao.id.vn/?success=true&orderCode=${orderCode}`,
-
-cancelUrl:
-`https://phanngoquocbao.id.vn/?cancel=true`,
-
-        items: [
-          {
-            name:
-              productName,
-
-            quantity:
-              Number(quantity),
-
-            price:
-              Number(amount)
-          }
-        ]
-      });
+    // DÒNG ĐÃ SỬA: Gọi trực tiếp hàm createPaymentLink thay vì qua paymentRequests
+    const paymentLink = await payOS.createPaymentLink({
+      orderCode,
+      amount: Number(amount),
+      description: "DH" + orderCode,
+      returnUrl: `https://phanngoquocbao.id.vn/?success=true&orderCode=${orderCode}`,
+      cancelUrl: `https://phanngoquocbao.id.vn/?cancel=true`,
+      items: [
+        {
+          name: productName,
+          quantity: Number(quantity),
+          price: Number(amount)
+        }
+      ]
+    });
 
     orders[orderCode] = {
       status: "PENDING",
@@ -72,123 +56,64 @@ cancelUrl:
 
     res.json({
       success: true,
-
       orderCode,
-
-      description:
-        "DH" + orderCode,
-
+      description: "DH" + orderCode,
       amount,
-
       productName,
-
-      checkoutUrl:
-        paymentLink.checkoutUrl,
-
-      qrCode:
-        paymentLink.qrCode
+      checkoutUrl: paymentLink.checkoutUrl,
+      qrCode: paymentLink.qrCode
     });
 
   } catch (error) {
-
-    console.error(
-      "Create payment error:",
-      error
-    );
-
+    console.error("Create payment error:", error);
     res.status(500).json({
       success: false,
       message: error.message
     });
-
   }
 });
 
 app.post("/webhook", (req, res) => {
-
   try {
+    // DÒNG ĐÃ SỬA: Sử dụng verifyWebhookData theo cấu trúc thư viện mới
+    const data = payOS.verifyWebhookData(req.body);
 
-    const data =
-      payOS.webhooks.verify(req.body);
-
-    console.log(
-      "Webhook PayOS:",
-      data
-    );
+    console.log("Webhook PayOS:", data);
 
     if (data.orderCode) {
-
-      if (
-        orders[data.orderCode]
-      ) {
-
-        orders[data.orderCode]
-          .status = "PAID";
-
+      if (orders[data.orderCode]) {
+        orders[data.orderCode].status = "PAID";
       } else {
-
         orders[data.orderCode] = {
           status: "PAID"
         };
-
       }
-
-      console.log(
-        "Đã thanh toán:",
-        data.orderCode
-      );
+      console.log("Đã thanh toán:", data.orderCode);
     }
 
     res.status(200).send("OK");
-
   } catch (error) {
+    console.error("Webhook error:", error);
+    res.status(400).send("Invalid webhook");
+  }
+});
 
-    console.error(
-      "Webhook error:",
-      error
-    );
+app.get("/payment-status/:orderCode", (req, res) => {
+  const order = orders[req.params.orderCode];
 
-    res
-      .status(400)
-      .send("Invalid webhook");
-
+  if (!order) {
+    return res.json({
+      status: "PENDING"
+    });
   }
 
+  res.json({
+    status: order.status,
+    productName: order.productName,
+    amount: order.amount
+  });
 });
 
-app.get(
-  "/payment-status/:orderCode",
-  (req, res) => {
-
-    const order =
-      orders[
-        req.params.orderCode
-      ];
-
-    if (!order) {
-
-      return res.json({
-        status: "PENDING"
-      });
-
-    }
-
-    res.json({
-      status: order.status,
-      productName:
-        order.productName,
-      amount:
-        order.amount
-    });
-
-});
-
-app.listen(
-  process.env.PORT || 3000,
-  () => {
-
-    console.log(
-      "Server running"
-    );
-
+app.listen(process.env.PORT || 3000, () => {
+  console.log("Server running");
 });
