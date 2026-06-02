@@ -14,11 +14,11 @@ app.use(cors({
 
 app.use(express.json());
 
-const payOS = new PayOS({
-  clientId: process.env.PAYOS_CLIENT_ID,
-  apiKey: process.env.PAYOS_API_KEY,
-  checksumKey: process.env.PAYOS_CHECKSUM_KEY
-});
+const payOS = new PayOS(
+  process.env.PAYOS_CLIENT_ID,
+  process.env.PAYOS_API_KEY,
+  process.env.PAYOS_CHECKSUM_KEY
+);
 
 const orders = {};
 
@@ -34,6 +34,13 @@ app.post("/create-payment", async (req, res) => {
       quantity,
       amount
     } = req.body;
+
+    if (!productName || !quantity || !amount) {
+      return res.status(400).json({
+        success: false,
+        message: "Thiếu thông tin sản phẩm"
+      });
+    }
 
     const orderCode = Number(Date.now().toString().slice(-6));
 
@@ -75,14 +82,14 @@ app.post("/create-payment", async (req, res) => {
 
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message || "Lỗi tạo thanh toán PayOS"
     });
   }
 });
 
 app.post("/webhook", (req, res) => {
   try {
-    const data = payOS.webhooks.verify(req.body);
+    const data = payOS.verifyPaymentWebhookData(req.body);
 
     console.log("Webhook PayOS:", data);
 
