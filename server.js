@@ -7,9 +7,13 @@ const app = express();
 
 app.use(cors({
   origin: [
+    "http://phanngoquocbao.id.vn",
     "https://phanngoquocbao.id.vn",
+    "http://www.phanngoquocbao.id.vn",
     "https://www.phanngoquocbao.id.vn"
-  ]
+  ],
+  methods: ["GET", "POST", "OPTIONS"],
+  allowedHeaders: ["Content-Type"]
 }));
 
 app.use(express.json());
@@ -28,12 +32,7 @@ app.get("/", (req, res) => {
 
 app.post("/create-payment", async (req, res) => {
   try {
-    const {
-      productName,
-      productCode,
-      quantity,
-      amount
-    } = req.body;
+    const { productName, productCode, quantity, amount } = req.body;
 
     if (!productName || !quantity || !amount) {
       return res.status(400).json({
@@ -45,7 +44,7 @@ app.post("/create-payment", async (req, res) => {
     const orderCode = Number(Date.now().toString().slice(-6));
 
     const paymentLink = await payOS.createPaymentLink({
-      orderCode: orderCode,
+      orderCode,
       amount: Number(amount),
       description: "DH" + orderCode,
       returnUrl: `https://phanngoquocbao.id.vn/?success=true&orderCode=${orderCode}`,
@@ -61,18 +60,18 @@ app.post("/create-payment", async (req, res) => {
 
     orders[orderCode] = {
       status: "PENDING",
-      productName: productName,
-      productCode: productCode,
-      quantity: quantity,
-      amount: amount
+      productName,
+      productCode,
+      quantity,
+      amount
     };
 
     res.json({
       success: true,
-      orderCode: orderCode,
+      orderCode,
       description: "DH" + orderCode,
-      amount: amount,
-      productName: productName,
+      amount,
+      productName,
       checkoutUrl: paymentLink.checkoutUrl,
       qrCode: paymentLink.qrCode || paymentLink.checkoutUrl
     });
